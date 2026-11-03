@@ -43,7 +43,7 @@ fun UploadFileSong(
         if (isUploadingInProgress && !uiState.isLoading) {
             isUploadingInProgress = false
             if (uiState.error == null) {
-                Toast.makeText(context, "Upload thành công", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Upload thành công! ✨ AI đang tự động phân tích mô tả và gán thể loại ngầm...", Toast.LENGTH_LONG).show()
                 imageUri = null
                 audioUri = null
             } else {

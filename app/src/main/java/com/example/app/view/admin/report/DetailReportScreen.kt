@@ -439,21 +439,42 @@ fun DetailReportScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Issue type chip
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Report,
-                            contentDescription = null,
-                            tint = Color(0xFFE57373),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = report.issueType,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFFE57373),
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    // Issue type chip & AI badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Report,
+                                contentDescription = null,
+                                tint = Color(0xFFE57373),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = report.issueType,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(0xFFE57373),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        if (report.description.contains("[AI Auto-Flag")) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFF6C63FF).copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "🤖 AI Tự Động Phát Hiện",
+                                    color = Color(0xFF6C63FF),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -462,8 +483,8 @@ fun DetailReportScreen(
                     Text(
                         text = report.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                        maxLines = 2,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 16.sp
                     )

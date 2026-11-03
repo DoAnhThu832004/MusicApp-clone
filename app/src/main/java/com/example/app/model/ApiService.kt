@@ -119,6 +119,12 @@ interface ApiService {
         @Body request: SongUpdateRequest
     ): Response<ApiResponse<Song>>
 
+    @POST("songs/{id}/ai-enrich")
+    suspend fun enrichSongMetadata(
+        @Path("id") id: String,
+        @Query("overwrite") overwrite: Boolean = true
+    ): Response<ApiResponse<Song>>
+
     @POST("interactions/listen/{songId}")
     suspend fun recordListen(
         @Path("songId") songId: String

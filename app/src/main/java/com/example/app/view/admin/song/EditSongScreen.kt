@@ -31,6 +31,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.app.R
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import com.example.app.model.response.Song
 import com.example.app.view.general.DateDialog
 import com.example.app.viewmodel.SongViewModel
@@ -76,6 +82,7 @@ fun EditSongScreen(
                     mutableStateOf(songToEdit?.name ?: "")
                 }
                 var description by remember(songToEdit) { mutableStateOf(songToEdit?.description ?: "") }
+                var isAiEnriching by remember { mutableStateOf(false) }
                 var duration by remember(songToEdit) { mutableStateOf(songToEdit?.duration.toString() ?: "") }
                 var releasedDate by remember(songToEdit) { mutableStateOf(songToEdit?.releasedDate ?: "") }
                 var status by remember(songToEdit) { mutableStateOf(songToEdit?.status ?: "") }
@@ -116,9 +123,66 @@ fun EditSongScreen(
                     shape = RoundedCornerShape(15.dp)
                 )
                 Spacer(modifier = Modifier.padding(top = 8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.mo_ta),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            isAiEnriching = true
+                            songViewModel.enrichSongMetadata(
+                                songId = songId,
+                                overwrite = true,
+                                onSuccess = { enriched ->
+                                    isAiEnriching = false
+                                    description = enriched.description ?: description
+                                    enriched.genres?.let { aiGenres ->
+                                        selectedGenres.clear()
+                                        selectedGenres.addAll(aiGenres.map { it.id })
+                                    }
+                                    Toast.makeText(context, "✨ AI đã tạo mô tả và gợi ý thể loại!", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { msg ->
+                                    isAiEnriching = false
+                                    Toast.makeText(context, "Không thể tạo gợi ý AI: $msg", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        },
+                        enabled = !isAiEnriching,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (isAiEnriching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Đang sinh gợi ý...", fontSize = 12.sp)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "AI Gợi ý mô tả & Thể loại", fontSize = 12.sp)
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it},
+                    maxLines = 4,
                     label = {
                         Text(
                             text = stringResource(R.string.mo_ta),

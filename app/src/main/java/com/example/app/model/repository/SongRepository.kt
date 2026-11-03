@@ -22,6 +22,7 @@ class SongRepository(
     suspend fun createSong(request: SongCreationRequest) = apiService.createSong(request)
     suspend fun deleteSong(id: String) = apiService.deleteSong(id)
     suspend fun updateSong(id: String, request: SongUpdateRequest) = apiService.updateSong(id, request)
+    suspend fun enrichSongMetadata(songId: String, overwrite: Boolean = true) = apiService.enrichSongMetadata(songId, overwrite)
     suspend fun addSongToFavorite(songId: String) = apiService.addSongToFavorite(songId)
     suspend fun deleteSongFromFavorite(songId: String) = apiService.deleteSongFromFavorite(songId)
     suspend fun searchSongsForAdmin(query: String, page: Int, size: Int) = apiService.searchSongsForAdmin(query, page, size)

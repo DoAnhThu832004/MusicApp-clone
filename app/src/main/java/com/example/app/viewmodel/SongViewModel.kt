@@ -454,6 +454,40 @@ class SongViewModel(
             }
         }
     }
+
+    /**
+     * Gọi API AI tự động sinh mô tả & gợi ý thể loại (Feature 1)
+     */
+    fun enrichSongMetadata(
+        songId: String,
+        overwrite: Boolean = true,
+        onSuccess: ((Song) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = repository.enrichSongMetadata(songId, overwrite)
+                if (response.isSuccessful && response.body()?.code == 1000 && response.body()?.result != null) {
+                    val enrichedSong = response.body()!!.result
+                    val currentList = _songUiState.value.songs ?: emptyList()
+                    val updatedList = currentList.map {
+                        if (it.id == songId) enrichedSong else it
+                    }
+                    _songUiState.value = _songUiState.value.copy(
+                        songs = updatedList,
+                        error = null
+                    )
+                    onSuccess?.invoke(enrichedSong)
+                } else {
+                    val err = response.errorBody()?.string() ?: "Lỗi phản hồi từ AI"
+                    onError?.invoke(err)
+                }
+            } catch (e: Exception) {
+                onError?.invoke(e.message ?: "Lỗi kết nối khi gọi AI")
+            }
+        }
+    }
+
     fun toggleFavorite(song: Song, playerViewModel: PlayerViewModel) {
         // 1. Xác định trạng thái mới (đảo ngược trạng thái hiện tại)
         val newFavoriteState = !song.favorite
