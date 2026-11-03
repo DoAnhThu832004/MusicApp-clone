@@ -299,9 +299,9 @@ interface ApiService {
         @Path("songId") songId: String,
         @Body request: CommentCreationRequest
     ): Response<ApiResponse<Comment>>
-    @DELETE("comments/{songId}")
+    @DELETE("comments/{commentId}")
     suspend fun deleteComment(
-        @Path("songId") songId: String
+        @Path("commentId") commentId: String
     ): Response<ApiResponse<String>>
     @PUT("comments/{commentId}")
     suspend fun updateComment(
