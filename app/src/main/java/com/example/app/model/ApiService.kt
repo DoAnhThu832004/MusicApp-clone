@@ -30,6 +30,10 @@ import com.example.app.model.response.Report
 import com.example.app.model.response.Song
 import com.example.app.model.response.UserResponse
 import com.example.app.model.response.HomeRecommendationResponse
+import com.example.app.model.ai.AiChatStreamRequest
+import com.example.app.model.ai.ChatSessionCreationRequest
+import com.example.app.model.ai.ChatMessageResponse
+import com.example.app.model.ai.ChatSessionResponse
 import com.example.app.viewmodel.SessionManager
 import okhttp3.Interceptor
 import okhttp3.MultipartBody
@@ -359,4 +363,29 @@ interface ApiService {
 
     @POST("api/admin/recommendations/trigger-aggregation")
     suspend fun triggerAggregation(): Response<ApiResponse<String>>
+
+    // ===== AI Companion & Chat SSE APIs =====
+    @POST("ai/chat/sessions")
+    suspend fun createChatSession(
+        @Body request: ChatSessionCreationRequest
+    ): Response<ApiResponse<ChatSessionResponse>>
+
+    @GET("ai/chat/sessions")
+    suspend fun getChatSessions(): Response<ApiResponse<List<ChatSessionResponse>>>
+
+    @GET("ai/chat/sessions/{sessionId}/messages")
+    suspend fun getChatMessages(
+        @Path("sessionId") sessionId: String
+    ): Response<ApiResponse<List<ChatMessageResponse>>>
+
+    @DELETE("ai/chat/sessions/{sessionId}")
+    suspend fun deleteChatSession(
+        @Path("sessionId") sessionId: String
+    ): Response<ApiResponse<String>>
+
+    @Streaming
+    @POST("ai/chat/stream")
+    suspend fun streamAiChat(
+        @Body request: AiChatStreamRequest
+    ): Response<ResponseBody>
 }

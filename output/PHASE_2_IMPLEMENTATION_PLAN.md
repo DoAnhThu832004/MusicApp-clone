@@ -252,16 +252,19 @@ QUY TẮC BẮT BUỘC:
 ### 📱 Sprint 2B: Xây Dựng Giao Diện Android & Tích Hợp Luồng ByteStream (Ngày 6 – Ngày 10)
 
 #### Ngày 6: Tầng Mạng Android (`@Streaming` + `byteStream()`) & Quản Lý Vòng Đời Kết Nối
-- [ ] **Task 2B.1**: Khai báo trong `ApiService.kt`:
+- [x] **Task 2B.1**: Khai báo trong `ApiService.kt`:
   ```kotlin
   @Streaming
   @POST("ai/chat/stream")
   suspend fun streamAiChat(@Body request: AiChatStreamRequest): Response<ResponseBody>
   ```
-- [ ] **Task 2B.2**: Xây dựng `SseStreamClient.kt`:
+  Và khai báo toàn bộ các endpoint CRUD Chat Session: `POST/GET ai/chat/sessions`, `GET messages`, `DELETE session`.
+- [x] **Task 2B.2**: Xây dựng `SseStreamClient.kt` & `AiChatRepository.kt`:
   - Đọc `response.body()?.byteStream()?.bufferedReader()` trong `Dispatchers.IO`.
-  - Sử dụng `awaitClose { call.cancel() }` hoặc `try-finally { reader.close() }` gắn chặt với `viewModelScope` để khi người dùng thoát màn hình hoặc bấm nút *"Dừng lại"*, kết nối TCP/HTTP bị đóng thực sự ngay lập tức (đạt chuẩn `AC-AI-08`).
+  - Sử dụng `try-finally { withContext(NonCancellable) { reader.close(); stream.close(); body.close() } }` gắn chặt với `viewModelScope` để khi người dùng thoát màn hình hoặc bấm nút *"Dừng lại"*, kết nối TCP/HTTP bị đóng thực sự ngay lập tức (đạt chuẩn `AC-AI-08`).
   - Xử lý trường hợp Token hết hạn trước khi mở stream: `TokenAuthenticator` sẵn có trong `ApiClient.kt` sẽ tự động refresh token khi nhận HTTP `401` ngay ở bước thiết lập kết nối POST ban đầu.
+  - Phân loại lỗi mạng, lỗi `409 Conflict` (AI_SESSION_BUSY) và `429 Too Many Requests` (AI_RATE_LIMIT_EXCEEDED) với thông báo tiếng Việt thân thiện.
+  - Hoàn thành toàn diện 9/9 Unit Tests cho `SseStreamClientTest` và `AiChatRepositoryTest` (BUILD SUCCESSFUL).
 
 #### Ngày 7: `AiCompanionViewModel.kt` Với Bộ Đệm UI 40ms (Chống Recomposition Storm)
 - [ ] **Task 2B.3**: Xây dựng `AiCompanionViewModel.kt`:
