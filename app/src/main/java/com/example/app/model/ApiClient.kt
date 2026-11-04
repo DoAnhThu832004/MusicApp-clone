@@ -122,6 +122,11 @@ object ApiClient {
         return retrofit.create(ApiService::class.java)
     }
 
+    fun getAiChatRepository(context: Context): com.example.app.model.repository.AiChatRepository {
+        val apiService = build(context)
+        return com.example.app.model.repository.AiChatRepository(apiService)
+    }
+
     private fun responseCount(response: Response): Int {
         var res: Response? = response
         var result = 1

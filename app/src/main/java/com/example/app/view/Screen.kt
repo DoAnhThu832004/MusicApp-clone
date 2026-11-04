@@ -82,4 +82,6 @@ sealed class Screen(val route : String) {
     object OfflinePlayerScreen : Screen("offline_player_screen")
     // Màn hình Seasonal Theme (Halloween / Tết / Lễ hội Remote Config)
     object SeasonalThemeScreen : Screen("seasonal_theme_screen")
+    // Màn hình AI Companion Chatbot (Giai đoạn 2)
+    object AiCompanionScreen : Screen("ai_companion_screen")
 }

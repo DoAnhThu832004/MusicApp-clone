@@ -766,6 +766,19 @@ fun RecipeApp(
                     onBack = { navController.popBackStack() }
                 )
             }
+
+            // ── Màn hình AI Music Companion (Giai đoạn 2) ──
+            composable(route = Screen.AiCompanionScreen.route) {
+                val context = LocalContext.current
+                val aiRepository = remember { ApiClient.getAiChatRepository(context) }
+                val aiViewModel: com.example.app.viewmodel.AiCompanionViewModel = viewModel(
+                    factory = com.example.app.viewmodel.AiCompanionViewModelFactory(aiRepository, PlayerManager)
+                )
+                com.example.app.view.ai.AiCompanionScreen(
+                    viewModel = aiViewModel,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
         }
         val isUserSection = currentRoute != null && 
                 currentRoute != Screen.LoginScreen.route &&
@@ -773,7 +786,7 @@ fun RecipeApp(
                 currentRoute != Screen.SplashScreen.route &&
                 currentRoute != Screen.NavigationDraw.route
 
-        val isOnPlayer = currentRoute == Screen.PlayerScreen.createRoute()
+        val isOnPlayer = currentRoute == Screen.PlayerScreen.createRoute() || currentRoute == Screen.AiCompanionScreen.route
 
         if (isUserSection && !isOnPlayer) {
             MiniPlayer(

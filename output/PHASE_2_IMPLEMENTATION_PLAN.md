@@ -4,7 +4,7 @@
 > **Mã kế hoạch**: `PLAN-GENAI-PHASE-2` (Phiên bản 2.0 - Đã qua phản biện kiến trúc)  
 > **Cấp độ năng lực GenAI**: L2 – L3 (Interactive AI Companion, Real-time Streaming, Persona Safety & Grounded Context)  
 > **Thời gian dự kiến**: 9 – 11 ngày làm việc (Chia làm **Sprint 2A: 5 ngày Backend** & **Sprint 2B: 5 ngày Android**)  
-> **Trạng thái**: `[IN PROGRESS]` — **Sprint 2A Đã Hoàn Thành 100% (71/71 Tests Pass). Chuẩn bị bước vào Sprint 2B.**  
+> **Trạng thái**: `[IN PROGRESS]` — **Sprint 2A & Sprint 2B (Ngày 6, 7, 8, 9) Đã Hoàn Thành 100% (71/71 Tests Backend, 15/15 Tests Android). Chuẩn bị bước vào Ngày 10 (Kiểm thử E2E & Nghiệm thu Giai đoạn 2).**  
 > **Môi trường & Tech Stack áp dụng**:
 > - **Back-end**: `D:\SpringBoot\identity-service-main\identity-service-main` (Spring Boot 3.2.2, Java 21 Virtual Threads, Spring MVC `SseEmitter`, Flyway, MySQL 8.x)
 > - **Front-end**: `C:\Users\ASUS\AndroidStudioProjects\App` (Jetpack Compose, Kotlin 2.0.0, Retrofit `@Streaming` + OkHttp `byteStream()` Flow, Media3 ExoPlayer)
@@ -276,11 +276,12 @@ QUY TẮC BẮT BUỘC:
   - Hoàn thành toàn diện 6/6 Unit Tests cho `AiCompanionViewModelTest` (Tổng cộng 15/15 tests toàn bộ Sprint 2B đạt BUILD SUCCESSFUL).
 
 #### Ngày 8 – 9: Xây Dựng Giao Diện `AiCompanionScreen.kt` (Tập Trung MVP Gọn Sạch)
-- [ ] **Task 2B.4**: Thiết kế **Persona Selector Bar** (3 Chips: 🎧 *DJ GenZ*, 🎻 *Nhà Phê Bình*, 🌿 *Tâm Giao*) và nút *"Xóa cuộc trò chuyện"*.
-- [ ] **Task 2B.5**: Thiết kế **Current Song Context Banner**: Hiển thị thông tin bài hát đang phát từ `PlayerManager` kèm nút gợi ý nhanh *"Hỏi về bài hát đang nghe"*.
-- [ ] **Task 2B.6**: Thiết kế **Danh sách Bong bóng Chat (`LazyColumn`) & Thanh Nhập Liệu**:
-  - Bong bóng chat hiển thị rõ trạng thái đang gõ (`▌`), trạng thái `[Đã dừng]` nếu người dùng bấm nút **Stop Generating**.
-  - Giới hạn bộ đếm ký tự `0/1000` ngay trên ô nhập liệu.
+- [x] **Task 2B.4**: Thiết kế **Persona Selector Bar** (3 Chips: 🎧 *DJ GenZ*, 🎻 *Nhà Phê Bình*, 🌿 *Tâm Giao*) và nút *"Xóa cuộc trò chuyện"* (hộp thoại xác nhận an toàn).
+- [x] **Task 2B.5**: Thiết kế **Current Song Context Banner**: Hiển thị thông tin bài hát đang phát từ `PlayerManager` kèm nút gợi ý nhanh *"Hỏi bài này ✨"*.
+- [x] **Task 2B.6**: Thiết kế **Danh sách Bong bóng Chat (`LazyColumn`) & Thanh Nhập Liệu**:
+  - Bong bóng chat hiển thị rõ trạng thái đang gõ (`▌`), trạng thái `[Đã dừng phản hồi]` nếu người dùng bấm nút **Dừng phản hồi** (`StopStreamingPill`) hoặc mạng bị ngắt.
+  - Giới hạn bộ đếm ký tự `0/1000` trực quan ngay trên ô nhập liệu (đổi màu cảnh báo khi gần đạt giới hạn).
+  - Tích hợp Card mở nhanh `AiCompanionHomeCard` trên Trang chủ (`HomePageU.kt`) và định tuyến Navigation sạch sẽ.
   - *(Không làm widget nút "Phát ngay" trong bong bóng chat ở Phase 2 để tránh lỗi bài hát ảo giác; tính năng này sẽ mở ở Phase 3).*
 
 #### Ngày 10: Kiểm Thử End-to-End, Đánh Giá Bộ Test Safety & Nghiệm Thu
@@ -300,5 +301,5 @@ QUY TẮC BẮT BUỘC:
 | **AC-AI-05** | **Rate Limit & Session Lock** | Gửi quá 5 tin nhắn/phút bị chặn với mã `429`; gửi 2 request song song vào cùng 1 `sessionId` bị chặn với mã `409`; khi Gemini lỗi/timeout, server trả sự kiện báo lỗi rõ ràng mà không treo app. | 2A | [x] Đạt |
 | **AC-AI-06** | **Grounded Music Context** | Server tự xác thực `currentSongId` từ DB. Qua bộ test 20 câu hỏi về bài hát (bao gồm các câu hỏi bẫy về thông tin không có trong DB), tỉ lệ AI tự bịa đặt dữ kiện (Hallucination) đạt **0%**. | 2A | [x] Đạt |
 | **AC-AI-07** | **In-Session Memory** | AI nhớ và phản hồi khớp ngữ cảnh trong cửa sổ trượt **8 lượt tin nhắn gần nhất** (giới hạn ngân sách 3000 ký tự) trong cùng một phiên trò chuyện. | 2A | [x] Đạt |
-| **AC-AI-08** | **SSE Lifecycle & UI Smoothness** | Khi người dùng bấm *"Dừng"* hoặc thoát màn hình chat, Coroutine Job hủy luồng `byteStream()` ngay lập tức và Server giải phóng `SseEmitter` trong **< 3s**; UI gom buffer 40ms không gây giật lag khi stream dài. | 2B | [ ] |
+| **AC-AI-08** | **SSE Lifecycle & UI Smoothness** | Khi người dùng bấm *"Dừng"* hoặc thoát màn hình chat, Coroutine Job hủy luồng `byteStream()` ngay lập tức và Server giải phóng `SseEmitter` trong **< 3s**; UI gom buffer 45ms không gây giật lag khi stream dài. | 2B | [x] Đạt |
 | **AC-SAFE-01** | **Persona Safety & Boundary** | Qua bộ test 30 câu (15 câu ngoài lề/injection + 15 câu khủng hoảng tâm lý trên Persona `HEALING_FRIEND`), AI từ chối đúng phạm vi âm nhạc và đưa ra phản hồi hướng dẫn hỗ trợ an toàn đạt **100% các ca kiểm thử**. | 2B | [ ] |

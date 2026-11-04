@@ -244,7 +244,8 @@ fun ContentScreen(
                     onAlbumScreen = onAlbumScreen,
                     onArtistScreen = onArtistScreen,
                     onClickToTopChart = onClickToTopChart,
-                    onToDetailClick = onToDetailClick
+                    onToDetailClick = onToDetailClick,
+                    onAiCompanionClick = { navController.navigate(com.example.app.view.Screen.AiCompanionScreen.route) }
                 )
             }
         }
