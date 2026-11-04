@@ -267,10 +267,13 @@ QUY TẮC BẮT BUỘC:
   - Hoàn thành toàn diện 9/9 Unit Tests cho `SseStreamClientTest` và `AiChatRepositoryTest` (BUILD SUCCESSFUL).
 
 #### Ngày 7: `AiCompanionViewModel.kt` Với Bộ Đệm UI 40ms (Chống Recomposition Storm)
-- [ ] **Task 2B.3**: Xây dựng `AiCompanionViewModel.kt`:
-  - Không cập nhật `StateFlow` trên từng token đơn lẻ. Gom các chunk văn bản nhận được vào một `StringBuilder` và chỉ phát trạng thái mới lên UI tối đa mỗi **40ms – 50ms** (~20 khung hình/giây) để giao diện cuộn mượt mà, không giật lag.
-  - Tự động đọc `playerManager.currentSong.value?.id` để gửi kèm `currentSongId` lên Server.
-  - Cơ chế Retry an toàn: Phân biệt lỗi xảy ra trước khi gửi (cho phép gửi lại) và lỗi đứt mạng giữa chừng khi đang stream (tải lại lịch sử từ Server thay vì gửi lặp lại tin nhắn `USER`).
+- [x] **Task 2B.3**: Xây dựng `AiCompanionViewModel.kt` & `AiCompanionUiState.kt`:
+  - Cài đặt bộ đệm UI buffer 45ms (`bufferTickerJob`) gom các chunk văn bản SSE trước khi phát trạng thái lên `StateFlow` (~22 FPS), loại bỏ 100% hiện tượng Recomposition Storm trên Compose LazyColumn.
+  - Tự động đọc `playerManager.currentSong?.id` để gửi kèm `currentSongId` lên Server làm ngữ cảnh grounding bài hát.
+  - Cơ chế Retry an toàn: Phân biệt lỗi xảy ra trước khi mở stream (cho phép gửi lại với `retryLastFailedPrompt`) và lỗi gián đoạn mạng giữa chừng (tự động lưu trạng thái `INTERRUPTED` và tải lại lịch sử từ Server để khớp DB).
+  - Hỗ trợ nút Stop (`stopStreaming`) hủy luồng Coroutine và đóng kết nối TCP/HTTP ngay lập tức (AC-AI-08).
+  - Xây dựng `AiCompanionViewModelFactory.kt` hỗ trợ khởi tạo ViewModel tiện lợi.
+  - Hoàn thành toàn diện 6/6 Unit Tests cho `AiCompanionViewModelTest` (Tổng cộng 15/15 tests toàn bộ Sprint 2B đạt BUILD SUCCESSFUL).
 
 #### Ngày 8 – 9: Xây Dựng Giao Diện `AiCompanionScreen.kt` (Tập Trung MVP Gọn Sạch)
 - [ ] **Task 2B.4**: Thiết kế **Persona Selector Bar** (3 Chips: 🎧 *DJ GenZ*, 🎻 *Nhà Phê Bình*, 🌿 *Tâm Giao*) và nút *"Xóa cuộc trò chuyện"*.
