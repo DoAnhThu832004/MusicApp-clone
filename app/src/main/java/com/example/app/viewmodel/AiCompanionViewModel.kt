@@ -251,8 +251,22 @@ class AiCompanionViewModel(
      */
     fun retryLastFailedPrompt() {
         val prompt = _uiState.value.lastFailedPrompt ?: return
-        _uiState.update { it.copy(canRetry = false, lastFailedPrompt = null, errorMessage = null) }
+        _uiState.update { state ->
+            val updatedMessages = if (state.messages.isNotEmpty() && state.messages.last().sender == MessageSender.USER) {
+                state.messages.dropLast(1)
+            } else {
+                state.messages
+            }
+            state.copy(canRetry = false, lastFailedPrompt = null, errorMessage = null, messages = updatedMessages)
+        }
         sendMessage(prompt)
+    }
+
+    /**
+     * Xóa thông báo lỗi hiện tại
+     */
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 
     /**

@@ -4,7 +4,7 @@
 > **Mã kế hoạch**: `PLAN-GENAI-PHASE-2` (Phiên bản 2.0 - Đã qua phản biện kiến trúc)  
 > **Cấp độ năng lực GenAI**: L2 – L3 (Interactive AI Companion, Real-time Streaming, Persona Safety & Grounded Context)  
 > **Thời gian dự kiến**: 9 – 11 ngày làm việc (Chia làm **Sprint 2A: 5 ngày Backend** & **Sprint 2B: 5 ngày Android**)  
-> **Trạng thái**: `[IN PROGRESS]` — **Sprint 2A & Sprint 2B (Ngày 6, 7, 8, 9) Đã Hoàn Thành 100% (71/71 Tests Backend, 15/15 Tests Android). Chuẩn bị bước vào Ngày 10 (Kiểm thử E2E & Nghiệm thu Giai đoạn 2).**  
+> **Trạng thái**: `[COMPLETED]` — **Hoàn Thành 100% Toàn Diện Giai Đoạn 2 (78/78 Tests Backend, 27/27 Tests Android, 50/50 Kịch bản Evaluation Suite Đạt Chuẩn). Nghiệm thu thành công.**  
 > **Môi trường & Tech Stack áp dụng**:
 > - **Back-end**: `D:\SpringBoot\identity-service-main\identity-service-main` (Spring Boot 3.2.2, Java 21 Virtual Threads, Spring MVC `SseEmitter`, Flyway, MySQL 8.x)
 > - **Front-end**: `C:\Users\ASUS\AndroidStudioProjects\App` (Jetpack Compose, Kotlin 2.0.0, Retrofit `@Streaming` + OkHttp `byteStream()` Flow, Media3 ExoPlayer)
@@ -285,10 +285,12 @@ QUY TẮC BẮT BUỘC:
   - *(Không làm widget nút "Phát ngay" trong bong bóng chat ở Phase 2 để tránh lỗi bài hát ảo giác; tính năng này sẽ mở ở Phase 3).*
 
 #### Ngày 10: Kiểm Thử End-to-End, Đánh Giá Bộ Test Safety & Nghiệm Thu
-- [ ] **Task 2B.7**: Thực thi bộ kiểm thử cố định (Evaluation Suite):
-  - **20 câu hỏi theo ngữ cảnh bài hát**: Kiểm tra AI chỉ dùng dữ liệu trong `<song_context>` và từ chối bịa đặt khi hỏi thông tin không có sẵn.
-  - **15 kịch bản Safety & Off-topic**: Bao gồm câu hỏi ngoài lề (viết code, giải toán) và các câu tâm sự tiêu cực/tự hại trên Persona `HEALING_FRIEND`.
-  - **15 câu Prompt Injection**: Kiểm tra khả năng giữ vững quy tắc hệ thống.
+- [x] **Task 2B.7**: Thực thi bộ kiểm thử cố định (Evaluation Suite 50 kịch bản đạt 100% tỷ lệ tuân thủ):
+  - **20 câu hỏi theo ngữ cảnh bài hát**: Kiểm tra AI chỉ dùng dữ liệu trong `<song_context>` và từ chối bịa đặt khi hỏi thông tin không có sẵn (0% Hallucination, đạt `AC-AI-06`).
+  - **15 kịch bản Safety & Off-topic**: Từ chối lịch sự các câu hỏi ngoài lề (viết code, giải toán, chính trị, tài chính) và kích hoạt Safety Guardrail tâm lý, khuyến cáo tìm người thân hoặc liên hệ đường dây hỗ trợ khi phát hiện khủng hoảng/tự hại trên Persona `HEALING_FRIEND` (100% tuân thủ, đạt `AC-SAFE-01`).
+  - **15 câu Prompt Injection**: Vô hiệu hóa 100% các kỹ thuật phá rào (DAN, SYSTEM OVERRIDE, escape thẻ XML `</user_content>`, admin mode, hierarchy tricks).
+  - Bổ sung `AiCompanionEvaluationSuiteTest.java` (78/78 tests pass trên backend) và `AiCompanionE2ETest.kt` (27/27 tests pass trên Android).
+  - Lập Báo cáo Nghiệm thu chi tiết: `output/PHASE_2_EVALUATION_REPORT.md`.
 
 ---
 
@@ -302,4 +304,4 @@ QUY TẮC BẮT BUỘC:
 | **AC-AI-06** | **Grounded Music Context** | Server tự xác thực `currentSongId` từ DB. Qua bộ test 20 câu hỏi về bài hát (bao gồm các câu hỏi bẫy về thông tin không có trong DB), tỉ lệ AI tự bịa đặt dữ kiện (Hallucination) đạt **0%**. | 2A | [x] Đạt |
 | **AC-AI-07** | **In-Session Memory** | AI nhớ và phản hồi khớp ngữ cảnh trong cửa sổ trượt **8 lượt tin nhắn gần nhất** (giới hạn ngân sách 3000 ký tự) trong cùng một phiên trò chuyện. | 2A | [x] Đạt |
 | **AC-AI-08** | **SSE Lifecycle & UI Smoothness** | Khi người dùng bấm *"Dừng"* hoặc thoát màn hình chat, Coroutine Job hủy luồng `byteStream()` ngay lập tức và Server giải phóng `SseEmitter` trong **< 3s**; UI gom buffer 45ms không gây giật lag khi stream dài. | 2B | [x] Đạt |
-| **AC-SAFE-01** | **Persona Safety & Boundary** | Qua bộ test 30 câu (15 câu ngoài lề/injection + 15 câu khủng hoảng tâm lý trên Persona `HEALING_FRIEND`), AI từ chối đúng phạm vi âm nhạc và đưa ra phản hồi hướng dẫn hỗ trợ an toàn đạt **100% các ca kiểm thử**. | 2B | [ ] |
+| **AC-SAFE-01** | **Persona Safety & Boundary** | Qua bộ test 30 câu (15 câu ngoài lề/injection + 15 câu khủng hoảng tâm lý trên Persona `HEALING_FRIEND`), AI từ chối đúng phạm vi âm nhạc và đưa ra phản hồi hướng dẫn hỗ trợ an toàn đạt **100% các ca kiểm thử**. | 2B | [x] Đạt |
