@@ -497,10 +497,15 @@ fun ChatBubbleItem(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     // Nội dung tin nhắn
+                    val displayContent = if (message.status == MessageStatus.FAILED && message.content.isBlank()) {
+                        "Không thể nhận phản hồi từ AI. Vui lòng kiểm tra kết nối mạng hoặc cấu hình máy chủ."
+                    } else {
+                        message.content
+                    }
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = message.content,
-                            color = textColor,
+                            text = displayContent,
+                            color = if (message.status == MessageStatus.FAILED && message.content.isBlank()) MaterialTheme.colorScheme.error else textColor,
                             fontSize = 14.sp,
                             lineHeight = 20.sp
                         )
