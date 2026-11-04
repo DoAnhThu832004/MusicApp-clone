@@ -19,8 +19,15 @@ import com.google.gson.reflect.TypeToken
 object PlayerManager {
     private var player: ExoPlayer? = null
     private var context: Context? = null
-    var currentSong: Song?  = null
-        private set
+    private val _currentSongFlow = kotlinx.coroutines.flow.MutableStateFlow<Song?>(null)
+    val currentSongFlow: kotlinx.coroutines.flow.StateFlow<Song?> = _currentSongFlow
+
+    var currentSong: Song? = null
+        private set(value) {
+            field = value
+            _currentSongFlow.value = value
+        }
+
 
     var currentUserId: String? = null // Thêm để theo dõi người dùng hiện tại
     var isAdShowing: Boolean = false // Cờ tạm dừng khi đang phát quảng cáo
@@ -32,8 +39,10 @@ object PlayerManager {
 
     var repeatMode: Int = 0
         private set
+
     var isShuffleMode: Boolean = false
         private set
+
     private var audioManager: AudioManager? = null
 
     var onSongChanged: ((Song, Boolean) -> Unit)? = null
@@ -45,7 +54,13 @@ object PlayerManager {
     fun init(context: Context) {
         this.context = context.applicationContext
         if(player == null) {
-            player = ExoPlayer.Builder(context).build()
+            val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build()
+            player = ExoPlayer.Builder(context)
+                .setAudioAttributes(audioAttributes, true)
+                .build()
             setupPlayerListener()
         }
         audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -391,6 +406,22 @@ object PlayerManager {
         onSongChanged = null
         onDurationChanged = null
         onIsPlayingChanged = null
+    }
+
+    fun enqueueSong(song: Song) {
+        if (currentSong == null) {
+            play(song)
+        } else {
+            val list = songList.toMutableList()
+            if (list.none { it.id == song.id }) {
+                list.add(song)
+                songList = list
+            }
+        }
+    }
+
+    fun isPlayingSong(songId: String): Boolean {
+        return isPlaying() && currentSong?.id == songId
     }
 
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {

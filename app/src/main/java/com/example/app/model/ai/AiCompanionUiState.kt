@@ -14,7 +14,10 @@ data class UiChatMessage(
     val isStreaming: Boolean = false,
     val currentSongId: String? = null,
     val tokenCount: Int? = 0,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val suggestedSongs: List<SongCardDto> = emptyList(),
+    val playerAction: PlayerActionDto? = null,
+    val playlistProposal: PlaylistProposalDto? = null
 )
 
 /**
@@ -31,5 +34,6 @@ data class AiCompanionUiState(
     val errorMessage: String? = null,
     val currentSong: Song? = null,
     val canRetry: Boolean = false,
-    val lastFailedPrompt: String? = null
+    val lastFailedPrompt: String? = null,
+    val toolStatusMessage: String? = null
 )

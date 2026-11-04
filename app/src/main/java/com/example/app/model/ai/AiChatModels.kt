@@ -1,6 +1,8 @@
 package com.example.app.model.ai
 
+import com.example.app.model.response.Song
 import com.google.gson.annotations.SerializedName
+import java.io.Serializable
 
 /**
  * Người gửi tin nhắn trong phiên trò chuyện
@@ -70,9 +72,58 @@ data class AiChatStreamRequest(
 )
 
 /**
+ * DTO đại diện cho thẻ bài hát đề xuất từ AI (sử dụng cho Carousel, BottomSheet và Player Actions).
+ */
+data class SongCardDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("artistNames") val artistNames: String? = null,
+    @SerializedName("genreNames") val genreNames: String? = null,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("imageUrl") val imageUrl: String? = null,
+    @SerializedName("audioUrl") val audioUrl: String? = null,
+    @SerializedName("duration") val duration: Long? = 0L,
+    @SerializedName("playCount") val playCount: Long? = 0L
+) : Serializable {
+    fun toSong(): Song = Song(
+        id = this.id,
+        name = this.name,
+        description = this.description ?: "",
+        status = "PUBLIC",
+        duration = this.duration?.toInt() ?: 0,
+        releasedDate = "",
+        type = "AUDIO",
+        artistName = this.artistNames,
+        imageUrl = this.imageUrl,
+        audioUrl = this.audioUrl,
+        favorite = false,
+        playCount = this.playCount?.toInt() ?: 0,
+        genres = null
+    )
+}
+
+/**
+ * DTO đại diện cho lệnh điều khiển trình phát từ AI (PLAY hoặc QUEUE).
+ */
+data class PlayerActionDto(
+    @SerializedName("action") val action: String, // "PLAY" hoặc "QUEUE"
+    @SerializedName("song") val song: SongCardDto? = null,
+    @SerializedName("autoExecute") val autoExecute: Boolean = false
+) : Serializable
+
+/**
+ * DTO đại diện cho đề xuất danh sách phát (Playlist) từ AI gửi xuống Android UI (Human-in-the-Loop).
+ */
+data class PlaylistProposalDto(
+    @SerializedName("suggestedTitle") val suggestedTitle: String,
+    @SerializedName("songs") val songs: List<SongCardDto> = emptyList()
+) : Serializable
+
+/**
  * Cấu trúc một gói dữ liệu SSE trả về từ backend:
  * data: {"delta": "...", "done": false}
- * data: {"delta": "", "done": true, "status": "COMPLETE", "totalTokens": 185, "messageId": "..."}
+ * data: {"type": "tool_status", "toolName": "...", "message": "..."}
+ * data: {"delta": "", "done": true, "status": "COMPLETE", "totalTokens": 185, "suggestedSongs": [...], ...}
  */
 data class ChatStreamChunk(
     val delta: String = "",
@@ -80,7 +131,13 @@ data class ChatStreamChunk(
     val status: MessageStatus? = null,
     val messageId: String? = null,
     val totalTokens: Int? = null,
-    val errorCode: String? = null
+    val errorCode: String? = null,
+    val type: String? = null,
+    val toolName: String? = null,
+    val message: String? = null,
+    val suggestedSongs: List<SongCardDto>? = null,
+    val playerAction: PlayerActionDto? = null,
+    val playlistProposal: PlaylistProposalDto? = null
 )
 
 /**
@@ -93,9 +150,20 @@ sealed interface StreamEvent {
     data class Chunk(val delta: String) : StreamEvent
 
     /**
-     * Luồng stream hoàn tất thành công
+     * Bắn trạng thái công cụ AI đang chạy (Task 3B.1)
      */
-    data class Complete(val messageId: String?, val totalTokens: Int?) : StreamEvent
+    data class ToolStatus(val toolName: String, val message: String) : StreamEvent
+
+    /**
+     * Luồng stream hoàn tất thành công (kèm thẻ bài hát, lệnh phát, playlist)
+     */
+    data class Complete(
+        val messageId: String?,
+        val totalTokens: Int?,
+        val suggestedSongs: List<SongCardDto> = emptyList(),
+        val playerAction: PlayerActionDto? = null,
+        val playlistProposal: PlaylistProposalDto? = null
+    ) : StreamEvent
 
     /**
      * Xảy ra lỗi trong quá trình kết nối hoặc nhận stream

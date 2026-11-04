@@ -7,7 +7,9 @@ import com.example.app.model.ai.ChatMessageResponse
 import com.example.app.model.ai.ChatSessionResponse
 import com.example.app.model.ai.SseStreamClient
 import com.example.app.model.ai.StreamEvent
+import com.example.app.model.request.PlaylistCreateRequest
 import com.example.app.model.response.ApiResponse
+import com.example.app.model.response.Playlist
 import kotlinx.coroutines.flow.Flow
 import retrofit2.Response
 
@@ -53,5 +55,25 @@ open class AiChatRepository(
      */
     open suspend fun deleteChatSession(sessionId: String): Response<ApiResponse<String>> {
         return apiService.deleteChatSession(sessionId)
+    }
+
+    /**
+     * Tạo danh sách phát mới từ đề xuất của AI Companion (Sprint 3B).
+     */
+    open suspend fun createPlaylist(
+        title: String,
+        description: String = "Playlist tạo bởi AI Music Companion"
+    ): Response<ApiResponse<Playlist>> {
+        return apiService.createPlaylist(PlaylistCreateRequest(title = title, description = description))
+    }
+
+    /**
+     * Thêm bài hát vào danh sách phát (Sprint 3B).
+     */
+    open suspend fun addSongToPlaylist(
+        playlistId: String,
+        songId: String
+    ): Response<ApiResponse<Playlist>> {
+        return apiService.addSongToPlaylist(playlistId, songId)
     }
 }

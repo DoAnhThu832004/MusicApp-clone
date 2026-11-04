@@ -72,6 +72,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -81,9 +83,12 @@ import androidx.compose.ui.unit.sp
 import com.example.app.model.ai.AiPersona
 import com.example.app.model.ai.MessageSender
 import com.example.app.model.ai.MessageStatus
+import com.example.app.model.ai.PlaylistProposalDto
+import com.example.app.model.ai.SongCardDto
 import com.example.app.model.ai.UiChatMessage
 import com.example.app.model.response.Song
 import com.example.app.viewmodel.AiCompanionViewModel
+import com.example.app.viewmodel.PlayerManager
 
 /**
  * Màn hình trò chuyện AI Music Companion (Giai đoạn 2 - MVP)
@@ -97,8 +102,14 @@ fun AiCompanionScreen(
     onBackClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var inputText by rememberSaveable { mutableStateOf("") }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var activePlaylistProposal by remember { mutableStateOf<PlaylistProposalDto?>(null) }
+    var isSavingPlaylist by remember { mutableStateOf(false) }
+
+    // Trình lắng nghe phát nhạc tự động từ AI Agent
+    AgenticPlayerDispatcher(viewModel = viewModel)
 
     val listState = rememberLazyListState()
 
@@ -230,7 +241,12 @@ fun AiCompanionScreen(
                         items(uiState.messages, key = { it.id }) { message ->
                             ChatBubbleItem(
                                 message = message,
-                                persona = uiState.currentPersona
+                                persona = uiState.currentPersona,
+                                currentPlayingSongId = uiState.currentSong?.id,
+                                isPlaying = PlayerManager.isPlaying(),
+                                onPlaySong = { songCard -> PlayerManager.play(songCard.toSong()) },
+                                onAddToQueue = { songCard -> PlayerManager.enqueueSong(songCard.toSong()) },
+                                onSavePlaylist = { proposal -> activePlaylistProposal = proposal }
                             )
                         }
                     }
@@ -249,6 +265,9 @@ fun AiCompanionScreen(
                     }
                 }
             }
+
+            // 4.5. Trạng thái AI Tools (Task 3B.4)
+            AiToolStatusIndicator(message = uiState.toolStatusMessage)
 
             // 5. Thanh nhập liệu tin nhắn kèm bộ đếm ký tự 0/1000
             ChatInputBar(
@@ -287,6 +306,41 @@ fun AiCompanionScreen(
                 TextButton(onClick = { showDeleteConfirmDialog = false }) {
                     Text(text = "Hủy")
                 }
+            }
+        )
+    }
+
+    // BottomSheet lưu playlist đề xuất vào thư viện (Task 3B.7)
+    if (activePlaylistProposal != null) {
+        AiPlaylistSaveBottomSheet(
+            proposal = activePlaylistProposal!!,
+            isSaving = isSavingPlaylist,
+            onDismiss = {
+                if (!isSavingPlaylist) activePlaylistProposal = null
+            },
+            onConfirmSave = { title, selectedSongs ->
+                isSavingPlaylist = true
+                viewModel.saveProposedPlaylist(
+                    title = title,
+                    songIds = selectedSongs.map { it.id },
+                    onSuccess = {
+                        isSavingPlaylist = false
+                        activePlaylistProposal = null
+                        Toast.makeText(
+                            context,
+                            "Đã lưu playlist \"$title\" vào Thư viện! 🎶",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onError = { err ->
+                        isSavingPlaylist = false
+                        Toast.makeText(
+                            context,
+                            "Lỗi khi lưu playlist: $err",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
             }
         )
     }
@@ -435,7 +489,12 @@ fun SongContextBanner(
 @Composable
 fun ChatBubbleItem(
     message: UiChatMessage,
-    persona: AiPersona
+    persona: AiPersona,
+    currentPlayingSongId: String? = null,
+    isPlaying: Boolean = false,
+    onPlaySong: (SongCardDto) -> Unit = {},
+    onAddToQueue: (SongCardDto) -> Unit = {},
+    onSavePlaylist: (PlaylistProposalDto) -> Unit = {}
 ) {
     val isUser = message.sender == MessageSender.USER
 
@@ -538,6 +597,27 @@ fun ChatBubbleItem(
                         )
                     }
                 }
+            }
+
+            // Hiển thị Carousel bài hát đề xuất nếu có (Task 3B.3 & 3B.4)
+            if (message.suggestedSongs.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AiSongCarousel(
+                    songs = message.suggestedSongs,
+                    currentPlayingSongId = currentPlayingSongId,
+                    isPlaying = isPlaying,
+                    onPlaySong = onPlaySong,
+                    onAddToQueue = onAddToQueue
+                )
+            }
+
+            // Hiển thị đề xuất Playlist nếu có (Task 3B.7)
+            if (message.playlistProposal != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                AiPlaylistProposalCard(
+                    proposal = message.playlistProposal,
+                    onSaveClick = { onSavePlaylist(message.playlistProposal) }
+                )
             }
         }
     }

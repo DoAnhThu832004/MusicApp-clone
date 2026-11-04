@@ -1,5 +1,6 @@
 package com.example.app.model.ai
 
+import android.util.Log
 import com.example.app.model.ApiErrorUtils
 import com.example.app.model.ApiService
 import com.google.gson.Gson
@@ -32,11 +33,13 @@ class SseStreamClient(
      * @return Flow phát ra các sự kiện StreamEvent (Chunk, Heartbeat, Complete, Error)
      */
     fun streamChat(request: AiChatStreamRequest): Flow<StreamEvent> = flow {
+        Log.d("AiCompanion", "Bắt đầu stream SSE: sessionId=${request.sessionId}, songId=${request.currentSongId}, prompt=${request.message.take(40)}")
         val response = try {
             apiService.streamAiChat(request)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            Log.e("AiCompanion", "Lỗi kết nối mạng khi gọi API stream: ${e.localizedMessage}", e)
             emit(
                 StreamEvent.Error(
                     errorCode = "NETWORK_ERROR",
@@ -71,12 +74,14 @@ class SseStreamClient(
                 else -> apiError?.message ?: "Lỗi máy chủ (${response.code()})"
             }
 
+            Log.e("AiCompanion", "HTTP Error ${response.code()}: $errorCodeStr - $errorMessage - raw: $rawError")
             emit(StreamEvent.Error(errorCode = errorCodeStr, message = errorMessage))
             return@flow
         }
 
         val responseBody = response.body()
         if (responseBody == null) {
+            Log.e("AiCompanion", "HTTP 200 nhưng response body rỗng")
             emit(StreamEvent.Error(errorCode = "EMPTY_BODY", message = "Phản hồi rỗng từ máy chủ"))
             return@flow
         }
@@ -111,8 +116,17 @@ class SseStreamClient(
                     }
 
                     if (chunk != null) {
-                        if (chunk.done) {
+                        if (chunk.type == "tool_status") {
+                            Log.d("AiCompanion", "Stream ToolStatus: ${chunk.toolName} - ${chunk.message}")
+                            emit(
+                                StreamEvent.ToolStatus(
+                                    toolName = chunk.toolName ?: "",
+                                    message = chunk.message ?: "Đang xử lý dữ liệu âm nhạc..."
+                                )
+                            )
+                        } else if (chunk.done) {
                             if (chunk.status == MessageStatus.FAILED || chunk.errorCode != null) {
+                                Log.e("AiCompanion", "Stream Chunk FAILED: errorCode=${chunk.errorCode}")
                                 emit(
                                     StreamEvent.Error(
                                         errorCode = chunk.errorCode ?: "STREAM_FAILED",
@@ -120,24 +134,30 @@ class SseStreamClient(
                                     )
                                 )
                             } else {
+                                Log.d("AiCompanion", "Stream COMPLETE: messageId=${chunk.messageId}, tokens=${chunk.totalTokens}, songs=${chunk.suggestedSongs?.size ?: 0}")
                                 emit(
                                     StreamEvent.Complete(
                                         messageId = chunk.messageId,
-                                        totalTokens = chunk.totalTokens
+                                        totalTokens = chunk.totalTokens,
+                                        suggestedSongs = chunk.suggestedSongs ?: emptyList(),
+                                        playerAction = chunk.playerAction,
+                                        playlistProposal = chunk.playlistProposal
                                     )
                                 )
                             }
                             return@flow
                         } else if (chunk.delta.isNotEmpty()) {
+                            Log.d("AiCompanion", "Stream Chunk delta: ${chunk.delta.take(20)}")
                             emit(StreamEvent.Chunk(chunk.delta))
                         }
                     }
                 }
             }
         } catch (e: CancellationException) {
-            // Re-throw để Coroutine Flow hủy chuẩn xác khi ViewModelScope bị hủy hoặc người dùng bấm nút Dừng
+            Log.d("AiCompanion", "Stream bị hủy bởi người dùng hoặc CoroutineScope")
             throw e
         } catch (e: Exception) {
+            Log.e("AiCompanion", "Lỗi đọc luồng SSE: ${e.localizedMessage}", e)
             emit(
                 StreamEvent.Error(
                     errorCode = "STREAM_READ_ERROR",

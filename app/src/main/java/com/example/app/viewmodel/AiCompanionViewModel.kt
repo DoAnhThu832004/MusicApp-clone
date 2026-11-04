@@ -1,5 +1,6 @@
 package com.example.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.app.model.ai.AiChatStreamRequest
@@ -8,6 +9,9 @@ import com.example.app.model.ai.AiPersona
 import com.example.app.model.ai.ChatSessionCreationRequest
 import com.example.app.model.ai.MessageSender
 import com.example.app.model.ai.MessageStatus
+import com.example.app.model.ai.PlayerActionDto
+import com.example.app.model.ai.PlaylistProposalDto
+import com.example.app.model.ai.SongCardDto
 import com.example.app.model.ai.StreamEvent
 import com.example.app.model.ai.UiChatMessage
 import com.example.app.model.repository.AiChatRepository
@@ -16,9 +20,13 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -41,7 +49,11 @@ class AiCompanionViewModel(
     private val _uiState = MutableStateFlow(AiCompanionUiState())
     val uiState: StateFlow<AiCompanionUiState> = _uiState.asStateFlow()
 
+    private val _playerActionEvents = MutableSharedFlow<PlayerActionDto>(replay = 0, extraBufferCapacity = 1)
+    val playerActionEvents: SharedFlow<PlayerActionDto> = _playerActionEvents.asSharedFlow()
+
     private var streamingJob: Job? = null
+    private var songObservationJob: Job? = null
 
     // Ngưỡng thời gian bộ đệm UI (45ms ~ 22 FPS) chống giật màn hình
     private val bufferFlushIntervalMs: Long = 45L
@@ -49,6 +61,16 @@ class AiCompanionViewModel(
     init {
         syncCurrentSong()
         loadSessions()
+        observeCurrentSong()
+    }
+
+    private fun observeCurrentSong() {
+        songObservationJob?.cancel()
+        songObservationJob = CoroutineScope(SupervisorJob() + mainDispatcher).launch {
+            playerManager.currentSongFlow.collect { song ->
+                _uiState.update { it.copy(currentSong = song) }
+            }
+        }
     }
 
     /**
@@ -334,9 +356,48 @@ class AiCompanionViewModel(
     }
 
     /**
+     * Lưu danh sách phát được AI đề xuất vào Thư viện cá nhân (Task 3B.7).
+     * Human-in-the-Loop: Cho phép người dùng tùy biến tiêu đề và danh sách bài hát trước khi lưu.
+     */
+    fun saveProposedPlaylist(
+        title: String,
+        songIds: List<String>,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (title.isBlank() || songIds.isEmpty()) {
+            onError("Tiêu đề hoặc danh sách bài hát không hợp lệ")
+            return
+        }
+
+        scope.launch(mainDispatcher) {
+            try {
+                val createRes = repository.createPlaylist(title.trim())
+                if (createRes.isSuccessful && createRes.body()?.result != null) {
+                    val playlistId = createRes.body()!!.result.id
+                    for (songId in songIds) {
+                        try {
+                            repository.addSongToPlaylist(playlistId, songId)
+                        } catch (e: Exception) {
+                            Log.w("AiCompanion", "Không thể thêm bài $songId vào playlist $playlistId: ${e.message}")
+                        }
+                    }
+                    onSuccess()
+                } else {
+                    val errorMsg = createRes.errorBody()?.string() ?: "Không thể tạo danh sách phát"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                onError(e.localizedMessage ?: "Lỗi kết nối khi lưu playlist")
+            }
+        }
+    }
+
+    /**
      * Thực thi gửi tin nhắn và quản lý bộ đệm 45ms UI buffer cho luồng SSE stream
      */
     private fun executeSendMessage(prompt: String, sessionId: String, songId: String?) {
+        Log.d("AiCompanion", "executeSendMessage: prompt='$prompt', sessionId='$sessionId', songId='$songId'")
         val userMessage = UiChatMessage(
             sender = MessageSender.USER,
             content = prompt,
@@ -382,6 +443,10 @@ class AiCompanionViewModel(
                 }
             }
 
+            var lastSuggestedSongs: List<SongCardDto> = emptyList()
+            var lastPlayerAction: PlayerActionDto? = null
+            var lastPlaylistProposal: PlaylistProposalDto? = null
+
             try {
                 val streamRequest = AiChatStreamRequest(
                     sessionId = sessionId,
@@ -391,15 +456,25 @@ class AiCompanionViewModel(
 
                 repository.streamAiChat(streamRequest).collect { event ->
                     when (event) {
+                        is StreamEvent.ToolStatus -> {
+                            _uiState.update { it.copy(toolStatusMessage = event.message) }
+                        }
+
                         is StreamEvent.Chunk -> {
                             receivedAnyChunk = true
+                            _uiState.update { if (it.toolStatusMessage != null) it.copy(toolStatusMessage = null) else it }
                             synchronized(textAccumulator) {
                                 textAccumulator.append(event.delta)
                             }
                         }
 
                         is StreamEvent.Complete -> {
-                            // Luồng hoàn tất bình thường
+                            lastSuggestedSongs = event.suggestedSongs
+                            lastPlayerAction = event.playerAction
+                            lastPlaylistProposal = event.playlistProposal
+                            if (event.playerAction != null) {
+                                _playerActionEvents.tryEmit(event.playerAction)
+                            }
                         }
 
                         is StreamEvent.Error -> {
@@ -428,7 +503,12 @@ class AiCompanionViewModel(
 
                 val finalText = synchronized(textAccumulator) { textAccumulator.toString() }
                 withContext(mainDispatcher) {
-                    finalizeStreamingMessage(finalText)
+                    finalizeStreamingMessage(
+                        finalText = finalText,
+                        suggestedSongs = lastSuggestedSongs,
+                        playerAction = lastPlayerAction,
+                        playlistProposal = lastPlaylistProposal
+                    )
                 }
             }
         }
@@ -449,19 +529,28 @@ class AiCompanionViewModel(
     /**
      * Hoàn tất hoặc chốt hạ trạng thái tin nhắn khi kết thúc luồng stream
      */
-    private fun finalizeStreamingMessage(finalText: String) {
+    private fun finalizeStreamingMessage(
+        finalText: String,
+        suggestedSongs: List<SongCardDto> = emptyList(),
+        playerAction: PlayerActionDto? = null,
+        playlistProposal: PlaylistProposalDto? = null
+    ) {
         _uiState.update { state ->
             val updated = state.messages.map { msg ->
                 if (msg.isStreaming) {
                     msg.copy(
                         content = finalText,
                         isStreaming = false,
-                        status = if (finalText.isNotEmpty()) MessageStatus.COMPLETE else MessageStatus.FAILED
+                        status = if (finalText.isNotEmpty()) MessageStatus.COMPLETE else MessageStatus.FAILED,
+                        suggestedSongs = suggestedSongs,
+                        playerAction = playerAction,
+                        playlistProposal = playlistProposal
                     )
                 } else msg
             }
             state.copy(
                 isStreaming = false,
+                toolStatusMessage = null,
                 messages = updated
             )
         }
@@ -478,6 +567,7 @@ class AiCompanionViewModel(
         failedPrompt: String,
         sessionId: String
     ) {
+        Log.e("AiCompanion", "handleStreamError: errorMsg='$errorMsg', receivedAnyChunk=$receivedAnyChunk, failedPrompt='$failedPrompt', sessionId='$sessionId'")
         if (!receivedAnyChunk) {
             // Lỗi xảy ra trước khi bắt đầu stream (429, 409, rớt mạng trước khi kết nối)
             _uiState.update { state ->
@@ -485,6 +575,7 @@ class AiCompanionViewModel(
                 val cleanedMessages = state.messages.filterNot { it.isStreaming }
                 state.copy(
                     isStreaming = false,
+                    toolStatusMessage = null,
                     errorMessage = errorMsg,
                     canRetry = true,
                     lastFailedPrompt = failedPrompt,
@@ -501,6 +592,7 @@ class AiCompanionViewModel(
                 }
                 state.copy(
                     isStreaming = false,
+                    toolStatusMessage = null,
                     errorMessage = "$errorMsg (Câu trả lời bị gián đoạn)",
                     canRetry = false,
                     messages = updated
@@ -513,6 +605,7 @@ class AiCompanionViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        songObservationJob?.cancel()
         stopStreaming()
     }
 }
