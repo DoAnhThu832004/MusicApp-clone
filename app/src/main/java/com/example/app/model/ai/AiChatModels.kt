@@ -68,7 +68,8 @@ data class ChatMessageResponse(
 data class AiChatStreamRequest(
     val sessionId: String,
     val message: String,
-    val currentSongId: String? = null
+    val currentSongId: String? = null,
+    val clientSupportsTransportActions: Boolean = true
 )
 
 /**
