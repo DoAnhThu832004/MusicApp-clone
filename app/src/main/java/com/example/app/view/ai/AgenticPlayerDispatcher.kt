@@ -19,7 +19,7 @@ fun AgenticPlayerDispatcher(
 ) {
     LaunchedEffect(viewModel) {
         viewModel.playerActionEvents.collectLatest { actionDto: PlayerActionDto ->
-            Log.d("AgenticPlayer", "Nhận PlayerAction từ AI: action=${actionDto.action}, autoExecute=${actionDto.autoExecute}, song=${actionDto.song?.title}")
+            Log.d("AgenticPlayer", "Nhận PlayerAction từ AI: action=${actionDto.action}, autoExecute=${actionDto.autoExecute}, song=${actionDto.song?.name}")
 
             when (actionDto.action.uppercase()) {
                 "PAUSE" -> {
