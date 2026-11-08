@@ -7,6 +7,7 @@ import com.example.app.model.ai.AiChatStreamRequest
 import com.example.app.model.ai.AiCompanionUiState
 import com.example.app.model.ai.AiPersona
 import com.example.app.model.ai.ChatSessionCreationRequest
+import com.example.app.model.ai.ChatSessionResponse
 import com.example.app.model.ai.MessageSender
 import com.example.app.model.ai.MessageStatus
 import com.example.app.model.ai.PlayerActionDto
@@ -173,6 +174,67 @@ class AiCompanionViewModel(
                         errorMessage = e.localizedMessage ?: "Lỗi kết nối khi tải tin nhắn"
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Chuyển đổi sang một phiên trò chuyện cụ thể từ danh sách lịch sử
+     */
+    fun selectSession(session: ChatSessionResponse) {
+        if (_uiState.value.isStreaming) return
+        if (_uiState.value.currentSession?.id == session.id) return
+
+        _uiState.update {
+            it.copy(
+                currentSession = session,
+                currentPersona = session.persona
+            )
+        }
+        loadMessages(session.id)
+    }
+
+    /**
+     * Xóa một phiên trò chuyện cụ thể trong danh sách lịch sử
+     */
+    fun deleteSession(sessionToDelete: ChatSessionResponse) {
+        if (_uiState.value.isStreaming && _uiState.value.currentSession?.id == sessionToDelete.id) {
+            stopStreaming()
+        }
+
+        scope.launch(mainDispatcher) {
+            try {
+                val response = repository.deleteChatSession(sessionToDelete.id)
+                if (response.isSuccessful) {
+                    val remainingSessions = _uiState.value.sessions.filter { it.id != sessionToDelete.id }
+                    if (_uiState.value.currentSession?.id == sessionToDelete.id) {
+                        if (remainingSessions.isNotEmpty()) {
+                            val nextSession = remainingSessions.first()
+                            _uiState.update {
+                                it.copy(
+                                    currentSession = nextSession,
+                                    sessions = remainingSessions,
+                                    currentPersona = nextSession.persona
+                                )
+                            }
+                            loadMessages(nextSession.id)
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    currentSession = null,
+                                    sessions = emptyList(),
+                                    messages = emptyList()
+                                )
+                            }
+                        }
+                    } else {
+                        _uiState.update { it.copy(sessions = remainingSessions) }
+                    }
+                } else {
+                    _uiState.update { it.copy(errorMessage = "Không thể xóa phiên trò chuyện") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = e.localizedMessage ?: "Lỗi kết nối khi xóa phiên") }
             }
         }
     }

@@ -37,6 +37,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
@@ -105,6 +106,7 @@ fun AiCompanionScreen(
     val context = LocalContext.current
     var inputText by rememberSaveable { mutableStateOf("") }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showSessionHistorySheet by remember { mutableStateOf(false) }
     var activePlaylistProposal by remember { mutableStateOf<PlaylistProposalDto?>(null) }
     var isSavingPlaylist by remember { mutableStateOf(false) }
 
@@ -129,7 +131,9 @@ fun AiCompanionScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(
+                        modifier = Modifier.clickable { showSessionHistorySheet = true }
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "AI Music Companion",
@@ -162,6 +166,13 @@ fun AiCompanionScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showSessionHistorySheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Forum,
+                            contentDescription = "Lịch sử trò chuyện",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     if (uiState.currentSession != null) {
                         IconButton(onClick = { showDeleteConfirmDialog = true }) {
                             Icon(
@@ -341,6 +352,26 @@ fun AiCompanionScreen(
                         ).show()
                     }
                 )
+            }
+        )
+    }
+
+    // BottomSheet lịch sử trò chuyện & đổi phiên (Task Session History)
+    if (showSessionHistorySheet) {
+        AiSessionHistoryBottomSheet(
+            sessions = uiState.sessions,
+            currentSessionId = uiState.currentSession?.id,
+            onDismiss = { showSessionHistorySheet = false },
+            onSelectSession = { session ->
+                showSessionHistorySheet = false
+                viewModel.selectSession(session)
+            },
+            onCreateNewSession = {
+                showSessionHistorySheet = false
+                viewModel.createNewSession()
+            },
+            onDeleteSession = { sessionToDelete ->
+                viewModel.deleteSession(sessionToDelete)
             }
         )
     }
